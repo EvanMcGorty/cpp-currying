@@ -10,6 +10,8 @@ Functions with no arguments must be explicitly invoked with empty operator(), as
 
 Intermediate function types of already partially-curried functions are not lost from being wrapped up into anonymous functions and can thus be retrieved via implicit conversion (so types overloaded with operator() won't just automatically get eaten up by curry).
 
+There is also a concept, "curried", which represents curried functions which take particular parameters (albeit only those gotten through "curry"), where void can be used to indicate a unit argument aka empty application.
+
 I made everything constexpr, but did not worry about noexcept or the constness of operator().
 
 There is, of course, no use of std::function or any form of allocation/overhead.

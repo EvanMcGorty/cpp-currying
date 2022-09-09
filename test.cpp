@@ -12,27 +12,32 @@ auto expr(int a, int b)
 	}};
 }
 
+void test_function(curried<int,int,int,int,int> auto f)
+{
+	std::cout << "applying (1)\n";
+	auto f1 = f(1);
+
+	std::cout << "applying (2,4)\n";
+	auto f124 = f1(2,4);
+
+	std::cout << "applying (8)\n";
+	auto f1248 = f124(8);
+
+	std::cout << "printing result:\n";
+	std::cout << f1248 << "\n\n";
+
+	std::cout << "printing curry(expr)(1,2,4,8):\n";
+	std::cout << f(1,2,4,8) << "\n\n";
+
+	std::cout << "printing curry(expr)(1)(2)(4)(8):\n";
+	std::cout << f(1)(2)(4)(8) << "\n\n";
+}
+
 int main()
 {
 	auto cexpr = curry(expr);
-	
-	std::cout << "applying (1)\n";
-	auto cexpr1 = cexpr(1);
 
-	std::cout << "applying (2,4)\n";
-	auto cexpr124 = cexpr1(2,4);
-
-	std::cout << "applying (8)\n";
-	auto cexpr1248 = cexpr124(8);
-
-	std::cout << "printing result:\n";
-	std::cout << cexpr1248 << "\n\n";
-
-	std::cout << "printing curry(expr)(1,2,4,8):\n";
-	std::cout << curry(expr)(1,2,4,8) << "\n\n";
-
-	std::cout << "printing curry(expr)(1)(2)(4)(8):\n";
-	std::cout << curry(expr)(1)(2)(4)(8) << "\n\n";
+	test_function(cexpr);
 
 	std::cout << curry([](){std::cout << "curry(function with no arguments)() = "; return 100;})() << "\n\n";
 
@@ -47,7 +52,7 @@ int main()
 					std::cout << "applications: "; return a + b;};};};})
 		()(1,2)() << "\n\n";
 
-	std::function<int(int,int)> f = curry(expr)(1)(2); //does *not* construct a new std::function
+	std::function<int(int,int)> f2 = curry(expr)(1)(2); //does *not* construct a new std::function
 
 	char c; std::cin >> c;
 }
