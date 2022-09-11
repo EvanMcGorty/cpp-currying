@@ -12,6 +12,6 @@ Intermediate function types of already partially-curried functions are not lost 
 
 There is also a concept, "curried", which represents curried functions which take particular parameters (albeit only those gotten through "curry"), where void can be used to indicate a unit argument aka empty application.
 
-I made everything constexpr, but did not worry about noexcept or the constness of operator().
+I made everything constexpr, but did not worry about noexcept.
 
 There is, of course, no use of std::function or any form of allocation/overhead.
