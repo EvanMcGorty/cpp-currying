@@ -11,11 +11,13 @@ curried: a concept for a curried version of a function, equivalent to the conste
 
 curry_wrapper<t>::operator(): partially apply any number of arguments to and possibly evaluate a curried function
 
-curry_wrapper<t>::curry_wrapped_val(): access the value wrapped up by curry
+curry_wrapper<t>::curry_wrapped_val: access the value wrapped up by curry
 
-curry_wrapper<t>::curry_wrapped_type(): the type returned by curry_wrapped_val()
+curry_wrapper<t>::curry_wrapped_type: the type returned of curry_wrapped_val
 
-curry_wrapper<t> default/copy/move constructors, copy/move assignment operators, and a destructor
+curry_wrapper<t> implicit conversions to references to curry_wrapped_val
+
+curry_wrapper<t> default/copy/move constructors, copy/move assignment operators, destructor
 */
 
 #pragma once
@@ -27,7 +29,7 @@ curry_wrapper<t> default/copy/move constructors, copy/move assignment operators,
 //Rather an implementation detail and can be ignored by the user
 //Checks that each argument and the return type are correct when applied one at a time and that target type is an instance of curry_wrapper
 //Ideally it would just check the semantics of the class but it is too slow to check every possible way to apply the parameters.
-//For example: c(t1,t2,t3,t4), c(t1)(t2,t3,t4), c(t1,t2)(t3)(t4), etc, this grows exponentially with more parameters
+//For example: c(t1,t2,t3,t4), c(t1)(t2,t3,t4), c(t1,t2)(t3)(t4), etc, and this gets exponentially worse with more parameters
 template<typename t, typename...ts>
 constexpr bool is_curried_v = false //Base case overload, where t doesnt match the form of curry_wraper<something>
 	//There is an exception: t might have qualifiers that need to be removed (ie due to being perfect forwarded)
@@ -44,15 +46,15 @@ constexpr bool is_curried_v = false //Base case overload, where t doesnt match t
 template<typename t, typename...ts>
 concept curried = is_curried_v<t, ts...>;
 
-//Curries a function so that it may be called with any number of parameters
-//Therefore, it (ironically) also technically functions as an uncurry
+//Wraps a function so that it may be called with any number of parameters, std::bind_front-ing them one at a time
 //Functions with no parameters are treated as if they take a unit type, and must be explicitly empty-invoked
-//If the target callable is passed by (lvalue) reference, then it will be stored by reference (like passing via std::ref to std::bind)
-//To have it stored by value, explicitly std::move or copy construct if it isnt already being passed as an rvalue
+//Passing a callable by (lvalue) reference behaves exactly like passing a std::ref to std::bind_front
+//To have a callable stored by value, explicitly std::move or copy construct if it isnt already being passed as an rvalue
+//These same rules apply with regards to how the current callable will be captured when partially applying new parameters
 //Beware: calling curry on an already curried function will simply return it via perfect forwarding
-//Applications are done via bind_front, so std::ref and std::cref can be used on arguments to avoid copies.
-//Consider std::move-ing your curried callables when calling operator() to avoid copying previous captures into the new callable
-//Constness of the resulting object will be propogated to contained values and even references
+//Because applications are done via std::bind_front, std::ref and std::cref can be used on arguments to avoid copies.
+//When a callable is stored by reference, it can no longer have its rvalue operator() called
+//So, be sure to std::move your curried callables when calling operator() to avoid unnecessary copying
 template<typename callable_t>
 constexpr curried auto curry(callable_t&& callable);
 
@@ -66,7 +68,7 @@ class curry_wrapper
 private:
 
 	//Make constructor private to prevent ambiguity with the move constructor
-	constexpr curry_wrapper(callable_t&& callable) : raw_wrapped_val(std::forward<callable_t>(callable)) {}
+	constexpr curry_wrapper(callable_t&& callable) : curry_wrapped_val(std::forward<callable_t>(callable)) {}
 	
 	//Defer all construction to this function
 	template<typename friend_callable_t>
@@ -116,102 +118,69 @@ private:
 		return curry(std::invoke(std::forward<forwarding_callable_t>(callable)));
 	}
 
-	//kept private to propogate constness through curry_wrapped_val
-	callable_t raw_wrapped_val;
-
 	constexpr callable_t&& curry_wrapped_val_or_reference_wrapper() &&
 		requires (!std::is_lvalue_reference_v<callable_t>)
 	{
-		return std::move(raw_wrapped_val);
+		return std::move(curry_wrapped_val);
 	}
 
 	constexpr std::reference_wrapper<std::remove_reference_t<callable_t>> curry_wrapped_val_or_reference_wrapper() &&
 		requires (std::is_lvalue_reference_v<callable_t>)
 	{
-		return std::ref(raw_wrapped_val);
+		return std::ref(curry_wrapped_val);
 	}
 
 	constexpr callable_t const&& curry_wrapped_val_or_reference_wrapper() const&&
 		requires (!std::is_lvalue_reference_v<callable_t>)
 	{
-		return std::move(raw_wrapped_val);
+		return std::move(curry_wrapped_val);
 	}
 
 	constexpr std::reference_wrapper<const std::remove_reference_t<callable_t>> curry_wrapped_val_or_reference_wrapper() const&&
 		requires (std::is_lvalue_reference_v<callable_t>)
 	{
-		return std::ref(raw_wrapped_val);
+		return std::ref(curry_wrapped_val);
 	}
 
 public:
 
+	//kept private to propogate constness through curry_wrapped_val
+	callable_t curry_wrapped_val;
+
 	//The type of the wrapped callable value
 	using curry_wrapped_type = callable_t;
-
-	//curry_wrapped_val must propogate constness of the wrapper object to the wrapped object or reference
-	//If this is an lvalue then an lvalue should be returned
-
-	constexpr callable_t& curry_wrapped_val() &
-	{
-		return raw_wrapped_val;
-	}
-	
-	constexpr std::remove_reference_t<callable_t> const& curry_wrapped_val() const&
-	{
-		auto const& ret = raw_wrapped_val;
-		return ret;
-	}
-	
-	constexpr callable_t&& curry_wrapped_val() &&
-	{
-		return std::move(raw_wrapped_val);
-	}
-	
-	constexpr std::remove_reference_t<callable_t> const& curry_wrapped_val() const&&
-		requires (std::is_lvalue_reference_v<callable_t>)
-	{
-		auto const& ret = raw_wrapped_val;
-		return std::move(ret);
-	}
-	
-	constexpr std::remove_reference_t<callable_t> const&& curry_wrapped_val() const&&
-		requires (!std::is_lvalue_reference_v<callable_t>)
-	{
-		auto const& ret = raw_wrapped_val;
-		return std::move(ret);
-	}
 	
 	//Implicit conversions to the wrapped value
 	//Access the result of using a function through 'curry'
 	
-	constexpr operator auto() &
+	constexpr operator curry_wrapped_type&() &
 	{
-		return curry_wrapped_val();
+		return curry_wrapped_val;
 	}
-	constexpr operator auto() const&
+	constexpr operator curry_wrapped_type const&() const&
 	{
-		return curry_wrapped_val();
+		return curry_wrapped_val;
 	}
-	constexpr operator auto() &&
+	constexpr operator curry_wrapped_type&&() &&
 	{
-		return std::move(*this).curry_wrapped_val();
+		return std::move(curry_wrapped_val);
 	}
-	constexpr operator auto() const&&
+	constexpr operator curry_wrapped_type const&&() const&&
 	{
-		return std::move(*this).curry_wrapped_val();
+		return std::move(curry_wrapped_val);
 	}
 
 
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) &
 	{
-		return do_apply(std::ref(curry_wrapped_val()),std::forward<args_t>(args)...);
+		return do_apply(std::ref(curry_wrapped_val),std::forward<args_t>(args)...);
 	}
 
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) const&
 	{
-		return do_apply(std::ref(curry_wrapped_val()),std::forward<args_t>(args)...);
+		return do_apply(std::ref(curry_wrapped_val),std::forward<args_t>(args)...);
 	}
 
 	template<typename...args_t>
