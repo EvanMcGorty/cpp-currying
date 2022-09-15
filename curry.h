@@ -166,6 +166,15 @@ constexpr bool is_curried_v = false //Base case overload, where t doesnt match t
 	//There is an exception: t might have qualifiers that need to be removed (ie due to being perfect forwarded)
 	|| !std::same_as<t,std::remove_cvref_t<t>> && is_curried_v<std::remove_cvref_t<t>,ts...>;
 
+template<typename t, typename...ts>
+constexpr bool is_curried_v<t const, ts...> = is_curried_v<t, ts...>;
+template<typename t, typename...ts>
+constexpr bool is_curried_v<t&, ts...> = is_curried_v<t, ts...>;
+template<typename t, typename...ts>
+constexpr bool is_curried_v<t&&, ts...> = is_curried_v<t, ts...>;
+template<typename t, typename...ts>
+constexpr bool is_curried_v<std::reference_wrapper<t>, ts...> = is_curried_v<t, ts...>;
+
 //A concept for instances of curry and the types of their applications
 //No parameters just means that it is any curried function, regardless of return/parameter types
 //Otherwise the first parameter is the return type, and the rest are the argument types
