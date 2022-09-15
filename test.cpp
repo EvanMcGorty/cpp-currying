@@ -26,10 +26,10 @@ void test_function(curried<int,int,int,int,int> auto f)
 	std::cout << "printing result:\n";
 	std::cout << f1248 << "\n\n";
 
-	std::cout << "printing curry(expr)(1,2,4,8):\n";
+	std::cout << "printing curry{expr}(1,2,4,8):\n";
 	std::cout << f(1,2,4,8) << "\n\n";
 
-	std::cout << "printing curry(expr)(1)(2)(4)(8):\n";
+	std::cout << "printing curry{expr}(1)(2)(4)(8):\n";
 	std::cout << f(1)(2)(4)(8) << "\n\n";
 }
 
@@ -39,20 +39,20 @@ int main()
 
 	test_function(cexpr);
 
-	std::cout << curry([](){std::cout << "curry(function with no arguments)() = "; return 100;})() << "\n\n";
+	std::cout << curry{[](){std::cout << "curry{function with no arguments}() = "; return 100;}}() << "\n\n";
 
-	curry([](auto s){std::cout << s << "\n\n";})("curry(function with no return type)");
+	curry{[](auto s){std::cout << s << "\n\n";}}("curry{function with no return type}");
 
-	std::cout << "curry(\"a raw value\") = " << '"' << curry("a raw value") << '"' << "\n\n";
+	std::cout << "curry{\"a raw value\"} = " << '"' << curry{"a raw value"} << '"' << "\n\n";
 
-	std::cout << "don't " << curry([](){
+	std::cout << "don't " << curry{[](){
 		std::cout << "forget "; return [](int a){
 			std::cout << "your "; return [=](int b){
 				std::cout << "unit "; return [=](){
-					std::cout << "applications: "; return a + b;};};};})
+					std::cout << "applications: "; return a + b;};};};}}
 		()(1,2)() << "\n\n";
 
-	std::function<int(int,int)> f2 = curry(expr)(1)(2); //does *not* construct a new std::function
+	std::function<int(int,int)> f2 = curry{expr}(1)(2); //does *not* construct a new std::function
 
 	char c; std::cin >> c;
 }

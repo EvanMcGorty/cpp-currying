@@ -2,7 +2,7 @@
 
 I whipped this up one morning after realizing I had never seen an implementation of *actual* currying in c++, let alone something ergonomic and powerful.
 
-The generic class "curry" transforms a function, so that there is no difference between, for example, curry(f)(x,y,z), curry(f)(x)(y,z), curry(f)(x,y)(z), and curry(f)(x)(y)(z), regardless of if/how the original function was curried.
+The generic class "curry" transforms a function, so that there is no difference between, for example, curry{f}(x,y,z), curry{f}(x)(y,z), curry{f}(x,y)(z), and curry{f}(x)(y)(z), regardless of if/how the original function was curried.
 
 The result of an application can then be retrieved via implicit conversion, or alternatively via the public field curry::curry_wrapped_val (which is of type curry::curry_wrapped_val_type, the same type as the template parameter).
 
