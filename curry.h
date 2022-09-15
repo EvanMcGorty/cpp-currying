@@ -60,7 +60,7 @@ private:
 	{
 		return handle_invoke_result(std::invoke(std::forward<forwarding_callable_t>(callable),std::forward<arg1_t>(arg1)));
 	}
-	
+
 	template<typename forwarding_callable_t, typename arg1_t>
 	static constexpr void do_apply(forwarding_callable_t&& callable, arg1_t&& arg1)
 		requires (std::is_void_v<std::invoke_result_t<forwarding_callable_t,arg1_t>>)
@@ -87,7 +87,7 @@ private:
 	{
 		std::invoke(std::forward<forwarding_callable_t>(callable));
 	}
-	
+
 	template<typename forwarding_callable_t>
 	static constexpr auto do_apply(forwarding_callable_t&& callable)
 		requires (!std::is_void_v<std::invoke_result_t<forwarding_callable_t>>)
@@ -167,19 +167,24 @@ constexpr bool is_curried_v = false //Base case overload, where t doesnt match t
 	|| !std::same_as<t,std::remove_cvref_t<t>> && is_curried_v<std::remove_cvref_t<t>,ts...>;
 
 //A concept for instances of curry and the types of their applications
-//No parameters just means that it is any curried function, regardless of parameter types
+//No parameters just means that it is any curried function, regardless of return/parameter types
 //Otherwise the first parameter is the return type, and the rest are the argument types
 //void can be used to indicate a unit parameter, aka an empty () or invocation with zero arguments
 //A curried<A,B,C,D> corresponds to a "B -> C -> D -> A"
 //A curried<A> just corresponds to an "A", though still wrapped up by curry, so an implicit conversion is needed
 //A std::function<std::function<A(B)>(C)> is curried<A,C,B> as well as curried<std::function<A(B)>,C>
 //A std::function<int()> is curried<int,void>
+//Note: (curried<myfn_t,ret_t,args_t...>) if and only if (curried<myfn_t> && std::is_invokable_r_v<ret_t,myfn_t,args_t...>)
 template<typename t, typename...ts>
 concept curried = is_curried_v<t, ts...>;
 
 //Generic check that type is an instance of curry, independent of return type or arguments
 template<typename t>
 constexpr bool is_curried_v<curry<t>> = true;
+
+//Base case where the type is a void, presumably resulting from a curried<void,t>
+template<>
+constexpr bool is_curried_v<void, void> = true; //Because a curried<void,t> applied to t returns a void (and not a curried<void>)
 
 //Base case: check if something is simply a particular type wrapped up by curry
 template<typename t, typename return_t>
