@@ -42,8 +42,10 @@ template<typename t, typename...ts>
 constexpr bool is_curried_v<t&, ts...> = is_curried_v<t, ts...>;
 template<typename t, typename...ts>
 constexpr bool is_curried_v<t&&, ts...> = is_curried_v<t, ts...>;
+
+//require the reference wrapper to directly contain the curry<t>, so that multiple layers of such wrapper types are disallowed
 template<typename t, typename...ts>
-constexpr bool is_curried_v<std::reference_wrapper<t>, ts...> = is_curried_v<t, ts...>;
+constexpr bool is_curried_v<std::reference_wrapper<curry<t>>, ts...> = is_curried_v<curry<t>, ts...>;
 
 //A concept for instances of curry (and references/reference_wrappers thereof) and the types of their call operators
 //No parameters just means that it is any curried function, regardless of return/parameter types

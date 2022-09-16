@@ -6,7 +6,9 @@ There are also additional optional headers that provide small utilities.
 
 Overview of this file:
 
-curry<t>: class with a constructor from t that wraps a callable and curries it
+curry<t>: the main wrapper class for currying functions
+
+curry<t>::curry: constructor that takes the wrapped type and (optionally) parameters to bind
 
 curry<t>::operator(): partially apply any number of arguments to and possibly evaluate a curried function
 
@@ -19,22 +21,32 @@ curry<t> default/copy/move constructors, copy/move assignment operators, destruc
 #include<concepts>
 #include<functional>
 
-
-//Wraps a function so that it may be called with any number of parameters, std::bind_front-ing them one at a time
-//Functions with no parameters are treated as if they take a unit type, and must be explicitly empty-invoked
-//Use curry<std::reference_wrapper<...>> or construct via curry{std::ref(...)} to capture the callable by reference
-//Calling operator() by (lvalue) reference behaves like passing a std::ref of the wrapped callable to std::bind_front
-//To have the callable stored by value, explicitly std::move or copy construct if it isnt already being used as an rvalue
-//Note the implications of this: when a callable is stored by reference, it can no longer have its rvalue operator() called
-//So, be sure to consider std::move-ing your curried callables when calling operator() to avoid unnecessary copying
-//Because applications are done via std::bind_front, std::ref and std::cref can be used on arguments to avoid copies.
 template<typename callable_t>
-class curry
-{
-private:
+class curry;
 
-	template<typename friend_callable_t>
-	friend class curry;
+//Invalid instance of curry, should not occur unless a void results from a curry constructor with multiple arguments
+//For this reason, it is used to store some static methods without cluttering the global namespace
+//Rather an implementation detail, contents are not meant to be used, though they are not dangerous
+//Contents are used by curry<t>, as well as by the deduction guide for its multiple-argument constructor
+template<>
+class curry<void>
+{
+public:
+
+	template<typename c_callable_t, typename arg1_t, typename...args_t>
+	constexpr curry(c_callable_t&& callable, arg1_t&& arg1, args_t&&...args)
+	{
+		::curry<void>::do_apply(std::forward<c_callable_t>(callable), std::forward<arg1_t>(arg1), std::forward<args_t>(args)...);
+	}
+
+	constexpr curry() = delete;
+	constexpr curry(curry const& rhs) = delete;
+	constexpr curry(curry&& rhs) = delete;
+	constexpr curry& operator=(curry const& rhs) = delete;
+	constexpr curry& operator=(curry&& rhs) = delete;
+
+	constexpr ~curry() = default;
+	
 
 	template<typename ret_t>
 	static constexpr auto handle_invoke_result(ret_t&& ret)
@@ -90,12 +102,46 @@ private:
 		return handle_invoke_result(std::invoke(std::forward<forwarding_callable_t>(callable)));
 	}
 
+	//needed for the deduction guide
+	template<typename t>
+	struct unwrap_do_apply_result {};
+
+	template<>
+	struct unwrap_do_apply_result<void> 
+	{
+		using type = void;
+	};
+
+	template<typename t>
+	struct unwrap_do_apply_result<curry<t>>
+	{
+		using type = t;
+	};
+};
+
+//Wraps a function so that it may be called with any number of parameters, std::bind_front-ing them one at a time
+//Functions with no parameters are treated as if they take a unit type, and must be explicitly empty-invoked
+//Use curry<std::reference_wrapper<...>> or construct via curry{std::ref(...)} to capture the callable by reference
+//Calling operator() by (lvalue) reference behaves like passing a std::ref of the wrapped callable to std::bind_front
+//To have the callable stored by value, explicitly std::move or copy construct if it isnt already being used as an rvalue
+//Note the implications of this: when a callable is stored by reference, it can no longer have its rvalue operator() called
+//So, be sure to consider std::move-ing your curried callables when calling operator() to avoid unnecessary copying
+//Because applications are done via std::bind_front, std::ref and std::cref can be used on arguments to avoid copies.
+template<typename callable_t>
+class curry
+{
+private:
+
 	//The wrapped value
 	callable_t wrapped;
 
 public:
 
 	constexpr curry(callable_t callable) : wrapped(std::move(callable)) {}
+
+	template<typename c_callable_t, typename arg1_t, typename...args_t>
+	constexpr curry(c_callable_t&& callable, arg1_t&& arg1, args_t&&...args) : 
+		wrapped(::curry<void>::do_apply(std::forward<c_callable_t>(callable), std::forward<arg1_t>(arg1), std::forward<args_t>(args)...)) {}
 	
 	constexpr operator callable_t&() &
 	{
@@ -118,25 +164,25 @@ public:
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) &
 	{
-		return do_apply(std::ref(wrapped),std::forward<args_t>(args)...);
+		return ::curry<void>::do_apply(std::ref(wrapped),std::forward<args_t>(args)...);
 	}
 
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) const&
 	{
-		return do_apply(std::ref(wrapped),std::forward<args_t>(args)...);
+		return ::curry<void>::do_apply(std::ref(wrapped),std::forward<args_t>(args)...);
 	}
 
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) &&
 	{
-		return do_apply(std::move(wrapped),std::forward<args_t>(args)...);
+		return ::curry<void>::do_apply(std::move(wrapped),std::forward<args_t>(args)...);
 	}
 
 	template<typename...args_t>
 	constexpr auto operator()(args_t...args) const&&
 	{
-		return do_apply(std::move(wrapped),std::forward<args_t>(args)...);
+		return ::curry<void>::do_apply(std::move(wrapped),std::forward<args_t>(args)...);
 	}
 
 	constexpr curry() = default;
@@ -146,3 +192,7 @@ public:
 	constexpr curry& operator=(curry&& rhs) = default;
 	constexpr ~curry() = default;
 };
+
+template<typename c_callable_t, typename arg1_t, typename...args_t>
+curry(c_callable_t&& callable, arg1_t&& arg1, args_t&&...args) ->
+	curry<typename ::curry<void>::unwrap_do_apply_result<decltype(::curry<void>::do_apply(std::forward<c_callable_t>(callable), std::forward<arg1_t>(arg1), std::forward<args_t>(args)...))>::type>;
