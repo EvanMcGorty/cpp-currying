@@ -29,6 +29,13 @@ struct is_curried
 	constexpr static bool value = is_curried_v<t,ts...>;
 };
 
+
+//Base case: check if something is simply a particular type wrapped up by curry
+template<typename t, typename return_t>
+constexpr bool is_curried_v<t, return_t> = is_curried_v<t> && std::convertible_to<t,return_t>; //Check return type in a manner consistent with std::is_invocable_r
+//Note: directly specializing is_curried_v<curry<t>,return_t> would disallow things which wrap a curry<t>
+
+
 //curried<t> might have qualifiers obscuring it (ie due to being perfect forwarded)
 //Also, a reference wrapper does variadic perfect forwarding on its operator() to the wrapped curried type
 //This actually means that their semantics satisfy all of the laws of curried types (as defined above)
@@ -42,10 +49,8 @@ template<typename t, typename...ts>
 constexpr bool is_curried_v<t&, ts...> = is_curried_v<t, ts...>;
 template<typename t, typename...ts>
 constexpr bool is_curried_v<t&&, ts...> = is_curried_v<t, ts...>;
-
-//require the reference wrapper to directly contain the curry<t>, so that multiple layers of such wrapper types are disallowed
 template<typename t, typename...ts>
-constexpr bool is_curried_v<std::reference_wrapper<curry<t>>, ts...> = is_curried_v<curry<t>, ts...>;
+constexpr bool is_curried_v<std::reference_wrapper<t>, ts...> = is_curried_v<t, ts...>;
 
 //A concept for instances of curry (and references/reference_wrappers thereof) and the types of their call operators
 //No parameters just means that it is any curried function, regardless of return/parameter types
@@ -66,10 +71,6 @@ constexpr bool is_curried_v<curry<t>> = true;
 //Base case where the type is a void, presumably resulting from a curried<void,t>
 template<>
 constexpr bool is_curried_v<void, void> = true; //Because a curried<void,t> applied to t returns a void (and not a curried<void>)
-
-//Base case: check if something is simply a particular type wrapped up by curry
-template<typename t, typename return_t>
-constexpr bool is_curried_v<curry<t>, return_t> = std::convertible_to<curry<t>,return_t>; //Check return type in a manner consistent with std::is_invocable_r
 
 //Recursive case where first argment is a unit/empty application (confusingly represented as the void type)
 template<typename t, typename return_t, typename...args_t>
